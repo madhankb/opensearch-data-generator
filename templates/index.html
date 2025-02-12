@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenSearch Data Generator</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .field-container {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+        .nested-fields {
+            margin-left: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">OpenSearch Data Generator</h1>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Schema Configuration</h5>
+                        <div class="mb-3">
+                            <label for="indexName" class="form-label">Index Name</label>
+                            <input type="text" class="form-control" id="indexName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="numRecords" class="form-label">Number of Records</label>
+                            <input type="number" class="form-control" id="numRecords" value="10" min="1" max="1000">
+                        </div>
+                        <div id="fields-container"></div>
+                        <button class="btn btn-primary mt-2" onclick="addField()">Add Field</button>
+                        <button class="btn btn-success mt-2" onclick="generateData()">Generate & Ingest Data</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Results</h5>
+                        <pre id="results" style="max-height: 500px; overflow-y: auto;"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function addField(containerId = 'fields-container', isNested = false) {
+            const container = document.getElementById(containerId);
+            const fieldId = `field-${Date.now()}`;
+            
+            const fieldDiv = document.createElement('div');
+            fieldDiv.className = 'field-container';
+            fieldDiv.id = fieldId;
+            
+            const html = `
+                <div class="row">
+                    <div class="col-md-4 mb-2">
+                        <input type="text" class="form-control" placeholder="Field Name" required>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <select class="form-control" onchange="handleTypeChange('${fieldId}')">
+                            <option value="string">String</option>
+                            <option value="number">Number</option>
+                            <option value="boolean">Boolean</option>
+                            <option value="date">Date</option>
+                            <option value="email">Email</option>
+                            <option value="array">Array</option>
+                            <option value="object">Object</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-2 array-type-container" style="display: none;">
+                        <select class="form-control array-type">
+                            <option value="string">String</option>
+                            <option value="number">Number</option>
+                            <option value="boolean">Boolean</option>
+                            <option value="date">Date</option>
+                            <option value="email">Email</option>
+                        </select>
+                    </div>
+                    <div class="col-md-1 mb-2">
+                        <button class="btn btn-danger" onclick="removeField('${fieldId}')">×</button>
+                    </div>
+                </div>
+                <div class="nested-fields" style="display: none;"></div>
+            `;
+            
+            fieldDiv.innerHTML = html;
+            container.appendChild(fieldDiv);
+        }
+
+        function handleTypeChange(fieldId) {
+            const fieldDiv = document.getElementById(fieldId);
+            const typeSelect = fieldDiv.querySelector('select');
+            const arrayTypeContainer = fieldDiv.querySelector('.array-type-container');
+            const nestedFields = fieldDiv.querySelector('.nested-fields');
+            
+            arrayTypeContainer.style.display = typeSelect.value === 'array' ? 'block' : 'none';
+            nestedFields.style.display = typeSelect.value === 'object' ? 'block' : 'none';
+            
+            if (typeSelect.value === 'object') {
+                nestedFields.innerHTML = '';
+                addField(nestedFields.id, true);
+            }
+        }
+
+        function removeField(fieldId) {
+            document.getElementById(fieldId).remove();
+        }
+
+        function collectSchema() {
+            const schema = {};
+            
+            function processField(container) {
+                const fields = container.querySelectorAll('.field-container');
+                const schemaSection = {};
+                
+                fields.forEach(field => {
+                    const fieldName = field.querySelector('input[type="text"]').value;
+                    const fieldType = field.querySelector('select').value;
+                    
+                    if (fieldType === 'array') {
+                        const itemsType = field.querySelector('.array-type').value;
+                        schemaSection[fieldName] = {
+                            type: 'array',
+                            items_type: itemsType
+                        };
+                    } else if (fieldType === 'object') {
+                        const nestedContainer = field.querySelector('.nested-fields');
+                        schemaSection[fieldName] = {
+                            type: 'object',
+                            properties: processField(nestedContainer)
+                        };
+                    } else {
+                        schemaSection[fieldName] = { type: fieldType };
+                    }
+                });
+                
+                return schemaSection;
+            }
+            
+            return processField(document.getElementById('fields-container'));
+        }
+
+        async function generateData() {
+            const schema = collectSchema();
+            const indexName = document.getElementById('indexName').value;
+            const numRecords = parseInt(document.getElementById('numRecords').value);
+            
+            if (!indexName) {
+                alert('Please provide an index name');
+                return;
+            }
+            
+            try {
+                document.getElementById('results').textContent = 'Generating data...';
+                const response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        schema,
+                        index_name: indexName,
+                        num_records: numRecords
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || 'Server error occurred');
+                }
+                
+                const result = await response.json();
+                document.getElementById('results').textContent = JSON.stringify(result, null, 2);
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('results').textContent = `Error: ${error.message}\n\nPlease check the browser console and server logs for more details.`;
+            }
+        }
+
+        // Add initial field
+        addField();
+    </script>
+</body>
+</html>
