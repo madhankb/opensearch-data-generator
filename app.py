@@ -20,67 +20,92 @@ CORS(app)  # Enable CORS for all routes
 fake = Faker()
 
 # OpenSearch configuration
-OPENSEARCH_HOST = os.getenv('OPENSEARCH_HOST', 'https://search-uitestdomain-43tel7vooim24uwac5fzgipyxq.ap-south-1.es.amazonaws.com')
-OPENSEARCH_PORT = int(os.getenv('OPENSEARCH_PORT', '443'))  # Use standard HTTPS port
+OPENSEARCH_HOST = 'search-uitestdomain-43tel7vooim24uwac5fzgipyxq.ap-south-1.es.amazonaws.com'
+OPENSEARCH_PORT = 443  # Use HTTPS port 443
 OPENSEARCH_USER = os.getenv('OPENSEARCH_USER', 'madhan')
 OPENSEARCH_PASSWORD = os.getenv('OPENSEARCH_PASSWORD', 'Madhan@123')
 
-# Parse the host URL to handle HTTPS correctly
-parsed_url = urlparse(OPENSEARCH_HOST)
-host = parsed_url.netloc if parsed_url.netloc else OPENSEARCH_HOST
-scheme = parsed_url.scheme if parsed_url.scheme else 'http'
+logger.debug(f"OpenSearch Configuration - Host: {OPENSEARCH_HOST}, Port: {OPENSEARCH_PORT}")
 
-logger.debug(f"OpenSearch Configuration - Host: {host}, Port: {OPENSEARCH_PORT}, Scheme: {scheme}")
+def init_opensearch():
+    try:
+        client = OpenSearch(
+            hosts=[{
+                'host': OPENSEARCH_HOST,
+                'port': OPENSEARCH_PORT,
+                'scheme': 'https'  # Explicitly set HTTPS
+            }],  
+            http_auth=(OPENSEARCH_USER, OPENSEARCH_PASSWORD),
+            use_ssl=True,  # Always use SSL for port 443
+            verify_certs=False,
+            ssl_show_warn=False,
+            timeout=30,  
+        )
+        # Test the connection
+        health = client.cluster.health()
+        logger.debug(f"Successfully connected to OpenSearch. Cluster health: {health}")
+        return client
+    except Exception as e:
+        logger.error(f"Failed to connect to OpenSearch: {str(e)}")
+        return None
 
-# For AWS OpenSearch domains, we don't need to specify the port
-client = OpenSearch(
-    hosts=[{'host': host, 'port': OPENSEARCH_PORT}],  
-    http_auth=(OPENSEARCH_USER, OPENSEARCH_PASSWORD),
-    use_ssl=True if scheme == 'https' else False,
-    verify_certs=False,
-    ssl_show_warn=False,
-    timeout=30,  
-)
+# Initialize OpenSearch client
+client = init_opensearch()
 
-# Test the connection
-try:
-    health = client.cluster.health()
-    logger.debug(f"Successfully connected to OpenSearch. Cluster health: {health}")
-except Exception as e:
-    logger.error(f"Failed to connect to OpenSearch: {str(e)}")
+if client is None:
+    logger.error("Failed to establish OpenSearch connection. Application will not start.")
+    exit(1)
 
 def generate_fake_data(field_type):
     if field_type == 'string':
-        return fake.word()
+        return fake.text()
     elif field_type == 'number':
-        return fake.random_number()
-    elif field_type == 'date':
-        return fake.date()
+        return fake.random_number(digits=5)
+    elif field_type == 'float':
+        return round(fake.random.uniform(-1000.0, 1000.0), 2)
     elif field_type == 'boolean':
         return fake.boolean()
+    elif field_type == 'date':
+        return fake.date_time_this_decade().isoformat()
     elif field_type == 'email':
         return fake.email()
-    return fake.word()
+    elif field_type == 'ip':
+        return fake.ipv4() if fake.boolean() else fake.ipv6()
+    elif field_type == 'geo_point':
+        return {
+            'lat': float(fake.latitude()),
+            'lon': float(fake.longitude())
+        }
+    else:
+        return str(fake.word())
 
 def generate_data_for_schema(schema, num_records=10):
     data = []
+    properties = schema.get('properties', {})
+    
     for _ in range(num_records):
         record = {}
-        for field_name, field_info in schema.items():
-            if field_info['type'] == 'array':
+        for field_name, field_info in properties.items():
+            field_type = field_info.get('type')
+            
+            if field_type == 'array':
+                # Generate array of items
+                array_type = field_info.get('items', {}).get('type', 'string')
                 array_length = fake.random_int(min=1, max=5)
-                record[field_name] = [
-                    generate_fake_data(field_info['items_type']) 
-                    for _ in range(array_length)
-                ]
-            elif field_info['type'] == 'object':
+                record[field_name] = [generate_fake_data(array_type) for _ in range(array_length)]
+            elif field_type == 'object':
+                # Generate nested object
+                nested_properties = field_info.get('properties', {})
                 nested_record = {}
-                for nested_field, nested_type in field_info['properties'].items():
-                    nested_record[nested_field] = generate_fake_data(nested_type)
+                for nested_name, nested_info in nested_properties.items():
+                    nested_type = nested_info.get('type', 'string')
+                    nested_record[nested_name] = generate_fake_data(nested_type)
                 record[field_name] = nested_record
             else:
-                record[field_name] = generate_fake_data(field_info['type'])
+                record[field_name] = generate_fake_data(field_type)
+        
         data.append(record)
+    
     return data
 
 @app.route('/')
@@ -112,19 +137,18 @@ def generate():
             bulk_data.append({'index': {'_index': index_name}})
             bulk_data.append(doc)
         
-        if bulk_data:
-            response = client.bulk(body=bulk_data, refresh=True)
-            success_count = sum(1 for item in response['items'] if 'index' in item and item['index']['status'] == 201)
+        response = client.bulk(body=bulk_data, refresh=True)
+        success_count = sum(1 for item in response['items'] if 'index' in item and item['index']['status'] == 201)
             
-            return jsonify({
-                'status': 'success',
-                'message': f'Successfully generated and inserted {success_count} records',
-                'sample_data': generated_data[:2]
-            })
+        return jsonify({
+            'status': 'success',
+            'message': f'Successfully generated and inserted {success_count} records',
+            'sample_data': generated_data[:2]
+        })
     
     except Exception as e:
         logger.error(f"Error in generate endpoint: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5006)
+    app.run(debug=True, port=5000)
