@@ -5,52 +5,246 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OpenSearch Data Generator</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Amazon+Ember:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        .field-container {
-            border: 1px solid #ddd;
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 5px;
+        :root {
+            --aws-squid-ink: #232F3E;
+            --aws-anchor: #0073BB;
+            --aws-anchor-hover: #0073BB;
+            --aws-bg-primary: #FFFFFF;
+            --aws-bg-secondary: #F8F9FA;
+            --aws-border: #D5DBDB;
+            --aws-orange: #FF9900;
+            --aws-text: #16191F;
         }
+
+        body {
+            font-family: "Amazon Ember", -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+            color: var(--aws-text);
+            background-color: var(--aws-bg-secondary);
+            line-height: 1.5;
+        }
+
+        .navbar {
+            background-color: var(--aws-squid-ink);
+            padding: 0.75rem 0;
+        }
+
+        .navbar-brand {
+            color: var(--aws-bg-primary);
+            font-weight: 700;
+            font-size: 1.4rem;
+            padding: 0.5rem 0;
+        }
+
+        .main-content {
+            padding: 2rem 0;
+            min-height: calc(100vh - 140px);
+        }
+
+        .card {
+            background-color: var(--aws-bg-primary);
+            border: 1px solid var(--aws-border);
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 1px 1px rgba(0, 28, 36, 0.1), 0 1px 3px rgba(0, 28, 36, 0.1);
+        }
+
+        .card-body {
+            padding: 1.5rem;
+        }
+
+        .card-title {
+            color: var(--aws-squid-ink);
+            font-weight: 700;
+            font-size: 1.2rem;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--aws-border);
+        }
+
+        .form-label {
+            color: var(--aws-squid-ink);
+            font-weight: 500;
+            font-size: 0.95rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-control {
+            border: 1px solid var(--aws-border);
+            border-radius: 4px;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.95rem;
+            color: var(--aws-text);
+        }
+
+        .form-control:focus {
+            border-color: var(--aws-anchor);
+            box-shadow: 0 0 0 2px rgba(0, 115, 187, 0.2);
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            font-weight: 500;
+            font-size: 0.95rem;
+            border-radius: 4px;
+            transition: all 0.15s ease-in-out;
+        }
+
+        .btn-primary {
+            background-color: var(--aws-orange);
+            border-color: var(--aws-orange);
+            color: var(--aws-squid-ink);
+        }
+
+        .btn-primary:hover {
+            background-color: #ec8f04;
+            border-color: #ec8f04;
+            color: var(--aws-squid-ink);
+        }
+
+        .btn-outline-primary {
+            border: 1px solid var(--aws-border);
+            color: var(--aws-squid-ink);
+            background-color: var(--aws-bg-primary);
+        }
+
+        .btn-outline-primary:hover {
+            background-color: var(--aws-bg-secondary);
+            border-color: var(--aws-border);
+            color: var(--aws-squid-ink);
+        }
+
+        .btn-danger {
+            background-color: #D13212;
+            border-color: #D13212;
+            color: var(--aws-bg-primary);
+        }
+
+        .btn-danger:hover {
+            background-color: #b92c10;
+            border-color: #b92c10;
+        }
+
+        pre {
+            background-color: var(--aws-bg-secondary);
+            border: 1px solid var(--aws-border);
+            border-radius: 4px;
+            padding: 1rem;
+            font-size: 0.9rem;
+            color: var(--aws-text);
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .field-container {
+            background-color: var(--aws-bg-secondary);
+            border: 1px solid var(--aws-border);
+            border-radius: 4px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
         .nested-fields {
-            margin-left: 20px;
+            margin-left: 1.5rem;
+            padding-left: 1rem;
+            border-left: 2px solid var(--aws-border);
+        }
+
+        .footer {
+            background-color: var(--aws-squid-ink);
+            padding: 1.25rem 0;
+            color: var(--aws-bg-primary);
+        }
+
+        .footer-text {
+            color: var(--aws-bg-primary);
+            font-size: 0.9rem;
+            text-align: center;
+            margin: 0;
+        }
+
+        .footer-link {
+            color: var(--aws-bg-primary);
+            text-decoration: none;
+            transition: color 0.15s ease-in-out;
+        }
+
+        .footer-link:hover {
+            color: var(--aws-orange);
+            text-decoration: underline;
+        }
+
+        .alert {
+            border-radius: 4px;
+            padding: 0.75rem 1rem;
+            margin-bottom: 1rem;
+            border: 1px solid transparent;
+        }
+
+        .alert-info {
+            background-color: #F1FAFF;
+            border-color: #B8E6FF;
+            color: var(--aws-text);
         }
     </style>
 </head>
 <body>
-    <div class="container mt-5">
-        <h1 class="mb-4">OpenSearch Data Generator</h1>
-        
-        <div class="row">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Schema Configuration</h5>
-                        <div class="mb-3">
-                            <label for="indexName" class="form-label">Index Name</label>
-                            <input type="text" class="form-control" id="indexName" required>
+    <nav class="navbar">
+        <div class="container">
+            <span class="navbar-brand">OpenSearch Data Generator</span>
+        </div>
+    </nav>
+
+    <div class="main-content">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Schema Configuration</h5>
+                            <div class="alert alert-info">
+                                Configure your schema and generate test data for OpenSearch
+                            </div>
+                            <div class="mb-3">
+                                <label for="indexName" class="form-label">Index Name</label>
+                                <input type="text" class="form-control" id="indexName" required placeholder="Enter index name">
+                            </div>
+                            <div class="mb-3">
+                                <label for="numRecords" class="form-label">Number of Records</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" id="numRecords" value="10" min="1" max="1000" placeholder="Enter number of records">
+                                    <span class="input-group-text">records</span>
+                                </div>
+                            </div>
+                            <div id="fields-container"></div>
+                            <div class="d-grid gap-2">
+                                <button class="btn btn-outline-primary" onclick="addField()">Add Field</button>
+                                <button class="btn btn-primary" onclick="generateData()">Generate & Ingest Data</button>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="numRecords" class="form-label">Number of Records</label>
-                            <input type="number" class="form-control" id="numRecords" value="10" min="1" max="1000">
-                        </div>
-                        <div id="fields-container"></div>
-                        <button class="btn btn-primary mt-2" onclick="addField()">Add Field</button>
-                        <button class="btn btn-success mt-2" onclick="generateData()">Generate & Ingest Data</button>
                     </div>
                 </div>
-            </div>
-            
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Results</h5>
-                        <pre id="results" style="max-height: 500px; overflow-y: auto;"></pre>
+                
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Results</h5>
+                            <div class="preview-section">
+                                <pre id="results">No data generated yet</pre>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <footer class="footer">
+        <div class="container">
+            <p class="footer-text"> 2025 Created by <a href="https://github.com/madhankb" target="_blank" class="footer-link">Madhan</a></p>
+        </div>
+    </footer>
 
     <script>
         function addField(containerId = 'fields-container', isNested = false) {
@@ -103,92 +297,105 @@
             const arrayTypeContainer = fieldDiv.querySelector('.array-type-container');
             const nestedFields = fieldDiv.querySelector('.nested-fields');
             
-            arrayTypeContainer.style.display = typeSelect.value === 'array' ? 'block' : 'none';
-            nestedFields.style.display = typeSelect.value === 'object' ? 'block' : 'none';
-            
-            if (typeSelect.value === 'object') {
-                nestedFields.innerHTML = '';
-                addField(nestedFields.id, true);
+            if (typeSelect.value === 'array') {
+                arrayTypeContainer.style.display = 'block';
+                nestedFields.style.display = 'none';
+            } else if (typeSelect.value === 'object') {
+                arrayTypeContainer.style.display = 'none';
+                nestedFields.style.display = 'block';
+                if (!nestedFields.hasChildNodes()) {
+                    addField(nestedFields.id, true);
+                }
+            } else {
+                arrayTypeContainer.style.display = 'none';
+                nestedFields.style.display = 'none';
             }
         }
 
         function removeField(fieldId) {
-            document.getElementById(fieldId).remove();
+            const fieldDiv = document.getElementById(fieldId);
+            fieldDiv.remove();
         }
 
         function collectSchema() {
             const schema = {};
+            const fields = document.querySelectorAll('#fields-container > .field-container');
             
-            function processField(container) {
-                const fields = container.querySelectorAll('.field-container');
-                const schemaSection = {};
+            fields.forEach(field => {
+                const fieldName = field.querySelector('input').value;
+                const fieldType = field.querySelector('select').value;
+                const arrayType = field.querySelector('.array-type')?.value;
+                const nestedFields = field.querySelector('.nested-fields');
                 
-                fields.forEach(field => {
-                    const fieldName = field.querySelector('input[type="text"]').value;
-                    const fieldType = field.querySelector('select').value;
+                if (!fieldName) return;
+                
+                if (fieldType === 'array') {
+                    schema[fieldName] = {
+                        type: 'array',
+                        items_type: arrayType || 'string'
+                    };
+                } else if (fieldType === 'object') {
+                    const nestedSchema = {};
+                    const nestedInputs = nestedFields.querySelectorAll('input');
+                    const nestedSelects = nestedFields.querySelectorAll('select');
                     
-                    if (fieldType === 'array') {
-                        const itemsType = field.querySelector('.array-type').value;
-                        schemaSection[fieldName] = {
-                            type: 'array',
-                            items_type: itemsType
-                        };
-                    } else if (fieldType === 'object') {
-                        const nestedContainer = field.querySelector('.nested-fields');
-                        schemaSection[fieldName] = {
-                            type: 'object',
-                            properties: processField(nestedContainer)
-                        };
-                    } else {
-                        schemaSection[fieldName] = { type: fieldType };
-                    }
-                });
-                
-                return schemaSection;
-            }
+                    nestedInputs.forEach((input, index) => {
+                        if (input.value) {
+                            nestedSchema[input.value] = nestedSelects[index].value;
+                        }
+                    });
+                    
+                    schema[fieldName] = {
+                        type: 'object',
+                        properties: nestedSchema
+                    };
+                } else {
+                    schema[fieldName] = {
+                        type: fieldType
+                    };
+                }
+            });
             
-            return processField(document.getElementById('fields-container'));
+            return schema;
         }
 
         async function generateData() {
-            const schema = collectSchema();
             const indexName = document.getElementById('indexName').value;
             const numRecords = parseInt(document.getElementById('numRecords').value);
+            const schema = collectSchema();
             
-            if (!indexName) {
-                alert('Please provide an index name');
+            if (!indexName || Object.keys(schema).length === 0) {
+                alert('Please fill in all required fields');
                 return;
             }
             
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = 'Generating data...';
+            
             try {
-                document.getElementById('results').textContent = 'Generating data...';
                 const response = await fetch('/generate', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        schema,
                         index_name: indexName,
-                        num_records: numRecords
+                        num_records: numRecords,
+                        schema: schema
                     })
                 });
                 
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.message || 'Server error occurred');
-                }
-                
                 const result = await response.json();
-                document.getElementById('results').textContent = JSON.stringify(result, null, 2);
+                resultsDiv.innerHTML = JSON.stringify(result, null, 2);
             } catch (error) {
-                console.error('Error:', error);
-                document.getElementById('results').textContent = `Error: ${error.message}\n\nPlease check the browser console and server logs for more details.`;
+                resultsDiv.innerHTML = `Error: ${error.message}`;
             }
         }
 
         // Add initial field
-        addField();
+        window.onload = function() {
+            addField();
+        };
     </script>
 </body>
 </html>

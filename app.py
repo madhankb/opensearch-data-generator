@@ -34,13 +34,12 @@ logger.debug(f"OpenSearch Configuration - Host: {host}, Port: {OPENSEARCH_PORT},
 
 # For AWS OpenSearch domains, we don't need to specify the port
 client = OpenSearch(
-    hosts=[{'host': host}],  # Remove port specification for AWS OpenSearch
+    hosts=[{'host': host, 'port': OPENSEARCH_PORT}],  
     http_auth=(OPENSEARCH_USER, OPENSEARCH_PASSWORD),
     use_ssl=True if scheme == 'https' else False,
     verify_certs=False,
     ssl_show_warn=False,
-    timeout=30,  # Increase timeout to 30 seconds
-    port=443  # Use the port parameter at the client level
+    timeout=30,  
 )
 
 # Test the connection
@@ -99,52 +98,30 @@ def generate():
         num_records = data.get('num_records', 10)
         
         logger.debug(f"Generating {num_records} records for index {index_name}")
-        logger.debug(f"Schema: {schema}")
-
-        # Generate sample data
+        
+        # Generate fake data based on the schema
         generated_data = generate_data_for_schema(schema, num_records)
-        logger.debug(f"Generated data sample: {generated_data[:1]}")
-
+        
         # Create index if it doesn't exist
-        try:
-            if not client.indices.exists(index=index_name):
-                logger.debug(f"Creating new index: {index_name}")
-                client.indices.create(index=index_name)
-                logger.debug(f"Index {index_name} created successfully")
-        except OpenSearchException as e:
-            logger.error(f"Error creating index: {str(e)}")
-            return jsonify({'status': 'error', 'message': f"Error creating index: {str(e)}"}), 500
-        except Exception as e:
-            logger.error(f"Error creating index: {str(e)}")
-            return jsonify({'status': 'error', 'message': f"Error creating index: {str(e)}"}), 500
-
-        # Bulk insert data
+        if not client.indices.exists(index=index_name):
+            client.indices.create(index=index_name)
+        
+        # Bulk insert the generated data
         bulk_data = []
         for doc in generated_data:
             bulk_data.append({'index': {'_index': index_name}})
             bulk_data.append(doc)
-
+        
         if bulk_data:
-            logger.debug(f"Attempting to bulk insert {len(bulk_data)//2} documents")
-            try:
-                response = client.bulk(body=bulk_data)
-                logger.debug(f"Bulk insert response: {response}")
-                if response.get('errors'):
-                    logger.error(f"Bulk insert had errors: {response}")
-                    return jsonify({'status': 'error', 'message': f"Bulk insert errors: {response}"}), 500
-            except OpenSearchException as e:
-                logger.error(f"Error during bulk insert: {str(e)}")
-                return jsonify({'status': 'error', 'message': f"Error during bulk insert: {str(e)}"}), 500
-            except Exception as e:
-                logger.error(f"Error during bulk insert: {str(e)}")
-                return jsonify({'status': 'error', 'message': f"Error during bulk insert: {str(e)}"}), 500
-
-        return jsonify({
-            'status': 'success',
-            'message': f'Generated and ingested {len(generated_data)} records',
-            'sample_data': generated_data[:5]
-        })
-
+            response = client.bulk(body=bulk_data, refresh=True)
+            success_count = sum(1 for item in response['items'] if 'index' in item and item['index']['status'] == 201)
+            
+            return jsonify({
+                'status': 'success',
+                'message': f'Successfully generated and inserted {success_count} records',
+                'sample_data': generated_data[:2]
+            })
+    
     except Exception as e:
         logger.error(f"Error in generate endpoint: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
