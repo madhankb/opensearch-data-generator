@@ -199,6 +199,27 @@
     <div class="main-content">
         <div class="container">
             <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">OpenSearch Connection Details</h5>
+                            <div class="mb-3">
+                                <label for="domain" class="form-label">Domain Name</label>
+                                <input type="text" class="form-control" id="domain" placeholder="e.g., search-domain.region.es.amazonaws.com" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="username" class="form-label">Username</label>
+                                <input type="text" class="form-control" id="username" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="password" class="form-label">Password</label>
+                                <input type="password" class="form-control" id="password" required>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
                 <div class="col-md-6">
                     <div class="card">
                         <div class="card-body">
@@ -260,13 +281,16 @@
                     <div class="col-md-4 mb-2">
                         <input type="text" class="form-control" placeholder="Field Name" required>
                     </div>
-                    <div class="col-md-4 mb-2">
-                        <select class="form-control" onchange="handleTypeChange('${fieldId}')">
+                    <div class="col-md-3 mb-2">
+                        <select class="form-control field-type" onchange="handleTypeChange(this)">
                             <option value="string">String</option>
                             <option value="number">Number</option>
+                            <option value="float">Float</option>
                             <option value="boolean">Boolean</option>
                             <option value="date">Date</option>
                             <option value="email">Email</option>
+                            <option value="ip">IP</option>
+                            <option value="geo_point">Geo Point</option>
                             <option value="array">Array</option>
                             <option value="object">Object</option>
                         </select>
@@ -275,10 +299,31 @@
                         <select class="form-control array-type">
                             <option value="string">String</option>
                             <option value="number">Number</option>
+                            <option value="float">Float</option>
                             <option value="boolean">Boolean</option>
                             <option value="date">Date</option>
                             <option value="email">Email</option>
+                            <option value="ip">IP</option>
+                            <option value="geo_point">Geo Point</option>
                         </select>
+                    </div>
+                    <div class="col-md-3 mb-2 object-fields-container" style="display: none;">
+                        <div class="nested-fields">
+                            <div class="nested-field-row">
+                                <input type="text" class="form-control mb-2" placeholder="Field Name">
+                                <select class="form-control field-type mb-2">
+                                    <option value="string">String</option>
+                                    <option value="number">Number</option>
+                                    <option value="float">Float</option>
+                                    <option value="boolean">Boolean</option>
+                                    <option value="date">Date</option>
+                                    <option value="email">Email</option>
+                                    <option value="ip">IP</option>
+                                    <option value="geo_point">Geo Point</option>
+                                </select>
+                                <button class="btn btn-sm btn-secondary mb-2" onclick="addNestedField(this)">+ Add Field</button>
+                            </div>
+                        </div>
                     </div>
                     <div class="col-md-1 mb-2">
                         <button class="btn btn-danger" onclick="removeField('${fieldId}')">×</button>
@@ -291,80 +336,114 @@
             container.appendChild(fieldDiv);
         }
 
-        function handleTypeChange(fieldId) {
-            const fieldDiv = document.getElementById(fieldId);
-            const typeSelect = fieldDiv.querySelector('select');
-            const arrayTypeContainer = fieldDiv.querySelector('.array-type-container');
-            const nestedFields = fieldDiv.querySelector('.nested-fields');
-            
-            if (typeSelect.value === 'array') {
-                arrayTypeContainer.style.display = 'block';
-                nestedFields.style.display = 'none';
-            } else if (typeSelect.value === 'object') {
-                arrayTypeContainer.style.display = 'none';
-                nestedFields.style.display = 'block';
-                if (!nestedFields.hasChildNodes()) {
-                    addField(nestedFields.id, true);
-                }
-            } else {
-                arrayTypeContainer.style.display = 'none';
-                nestedFields.style.display = 'none';
-            }
-        }
-
         function removeField(fieldId) {
             const fieldDiv = document.getElementById(fieldId);
             fieldDiv.remove();
         }
 
-        function collectSchema() {
-            const schema = {};
-            const fields = document.querySelectorAll('#fields-container > .field-container');
+        function handleTypeChange(select) {
+            const arrayTypeContainer = select.parentElement.nextElementSibling;
+            const objectFieldsContainer = arrayTypeContainer.nextElementSibling;
             
+            if (select.value === 'array') {
+                arrayTypeContainer.style.display = 'block';
+                objectFieldsContainer.style.display = 'none';
+            } else if (select.value === 'object') {
+                arrayTypeContainer.style.display = 'none';
+                objectFieldsContainer.style.display = 'block';
+            } else {
+                arrayTypeContainer.style.display = 'none';
+                objectFieldsContainer.style.display = 'none';
+            }
+        }
+
+        function addNestedField(button) {
+            const container = button.parentElement;
+            const newRow = document.createElement('div');
+            newRow.className = 'nested-field-row';
+            newRow.innerHTML = `
+                <input type="text" class="form-control mb-2" placeholder="Field Name">
+                <select class="form-control field-type mb-2">
+                    <option value="string">String</option>
+                    <option value="number">Number</option>
+                    <option value="float">Float</option>
+                    <option value="boolean">Boolean</option>
+                    <option value="date">Date</option>
+                    <option value="email">Email</option>
+                    <option value="ip">IP</option>
+                    <option value="geo_point">Geo Point</option>
+                </select>
+                <button class="btn btn-sm btn-danger mb-2" onclick="removeNestedField(this)">Remove</button>
+            `;
+            container.appendChild(newRow);
+        }
+
+        function removeNestedField(button) {
+            button.parentElement.remove();
+        }
+
+        function buildSchema() {
+            const fields = document.querySelectorAll('.field-container');
+            const schema = {
+                properties: {}
+            };
+
             fields.forEach(field => {
                 const fieldName = field.querySelector('input').value;
-                const fieldType = field.querySelector('select').value;
-                const arrayType = field.querySelector('.array-type')?.value;
-                const nestedFields = field.querySelector('.nested-fields');
+                const fieldType = field.querySelector('.field-type').value;
                 
                 if (!fieldName) return;
-                
+
                 if (fieldType === 'array') {
-                    schema[fieldName] = {
+                    const arrayType = field.querySelector('.array-type').value;
+                    schema.properties[fieldName] = {
                         type: 'array',
-                        items_type: arrayType || 'string'
+                        items: {
+                            type: arrayType
+                        }
                     };
                 } else if (fieldType === 'object') {
-                    const nestedSchema = {};
-                    const nestedInputs = nestedFields.querySelectorAll('input');
-                    const nestedSelects = nestedFields.querySelectorAll('select');
+                    const nestedFields = field.querySelector('.nested-fields');
+                    const nestedProperties = {};
                     
-                    nestedInputs.forEach((input, index) => {
-                        if (input.value) {
-                            nestedSchema[input.value] = nestedSelects[index].value;
+                    nestedFields.querySelectorAll('.nested-field-row').forEach(nestedField => {
+                        const nestedName = nestedField.querySelector('input').value;
+                        const nestedType = nestedField.querySelector('.field-type').value;
+                        if (nestedName) {
+                            nestedProperties[nestedName] = {
+                                type: nestedType
+                            };
                         }
                     });
                     
-                    schema[fieldName] = {
+                    schema.properties[fieldName] = {
                         type: 'object',
-                        properties: nestedSchema
+                        properties: nestedProperties
                     };
                 } else {
-                    schema[fieldName] = {
+                    schema.properties[fieldName] = {
                         type: fieldType
                     };
                 }
             });
-            
+
             return schema;
         }
 
         async function generateData() {
             const indexName = document.getElementById('indexName').value;
             const numRecords = parseInt(document.getElementById('numRecords').value);
-            const schema = collectSchema();
+            const domain = document.getElementById('domain').value;
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const schema = buildSchema();
             
-            if (!indexName || Object.keys(schema).length === 0) {
+            if (!domain || !username || !password) {
+                alert('Please fill in all OpenSearch connection details');
+                return;
+            }
+            
+            if (!indexName || Object.keys(schema.properties).length === 0) {
                 alert('Please fill in all required fields');
                 return;
             }
@@ -379,9 +458,12 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
+                        schema: schema,
                         index_name: indexName,
                         num_records: numRecords,
-                        schema: schema
+                        domain: domain,
+                        username: username,
+                        password: password
                     })
                 });
                 

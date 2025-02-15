@@ -20,22 +20,15 @@ CORS(app)  # Enable CORS for all routes
 fake = Faker()
 
 # OpenSearch configuration
-OPENSEARCH_HOST = 'search-uitestdomain-43tel7vooim24uwac5fzgipyxq.ap-south-1.es.amazonaws.com'
-OPENSEARCH_PORT = 443  # Use HTTPS port 443
-OPENSEARCH_USER = os.getenv('OPENSEARCH_USER', 'madhan')
-OPENSEARCH_PASSWORD = os.getenv('OPENSEARCH_PASSWORD', 'Madhan@123')
-
-logger.debug(f"OpenSearch Configuration - Host: {OPENSEARCH_HOST}, Port: {OPENSEARCH_PORT}")
-
-def init_opensearch():
+def init_opensearch(host, username, password):
     try:
         client = OpenSearch(
             hosts=[{
-                'host': OPENSEARCH_HOST,
-                'port': OPENSEARCH_PORT,
+                'host': host,
+                'port': 443,  # Use HTTPS port 443
                 'scheme': 'https'  # Explicitly set HTTPS
             }],  
-            http_auth=(OPENSEARCH_USER, OPENSEARCH_PASSWORD),
+            http_auth=(username, password),
             use_ssl=True,  # Always use SSL for port 443
             verify_certs=False,
             ssl_show_warn=False,
@@ -48,13 +41,6 @@ def init_opensearch():
     except Exception as e:
         logger.error(f"Failed to connect to OpenSearch: {str(e)}")
         return None
-
-# Initialize OpenSearch client
-client = init_opensearch()
-
-if client is None:
-    logger.error("Failed to establish OpenSearch connection. Application will not start.")
-    exit(1)
 
 def generate_fake_data(field_type):
     if field_type == 'string':
@@ -121,6 +107,17 @@ def generate():
         schema = data['schema']
         index_name = data['index_name']
         num_records = data.get('num_records', 10)
+        domain = data['domain']
+        username = data['username']
+        password = data['password']
+        
+        logger.debug(f"Connecting to OpenSearch domain: {domain}")
+        
+        # Initialize OpenSearch client with provided credentials
+        client = init_opensearch(domain, username, password)
+        
+        if client is None:
+            return jsonify({'status': 'error', 'message': 'Failed to connect to OpenSearch'}), 500
         
         logger.debug(f"Generating {num_records} records for index {index_name}")
         
@@ -151,4 +148,4 @@ def generate():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5001)
